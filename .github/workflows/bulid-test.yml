@@ -1,0 +1,27 @@
+name: build-test
+
+on:
+  pull_request:
+  push:
+
+    
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+      - name: setup haskell env
+        uses: haskell-actions/setup@v2
+      - name: cabal cache
+        uses: actions/cache@v4
+        env:
+          cache-name: cache-cabal
+        with:
+          path: ~/.cabal
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('*.cabal') }} }}
+      - name: build dependencies
+        run: cabal build --only-dependencies
+      - name: build
+        run: cabal build
+#     - name: testen TODO testen toevoegen 
