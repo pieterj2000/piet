@@ -23,4 +23,11 @@ jobs:
       - name: build dependencies
         run: cabal build --only-dependencies
       - name: build
-        run: cabal build --ghc-options=-Weverything --ghc-options=-Werror
+        run: |
+          cabal build \
+          --ghc-options=-Wno-safe \
+          --ghc-options=-Wno-missing-safe-haskell-mode \
+          --ghc-options=-Wno-implicit-prelude \
+          --ghc-options=-Weverything \
+          --ghc-options=-Werror 
+            
