@@ -19,7 +19,7 @@ jobs:
           cache-name: cache-cabal
         with:
           path: ~/.cabal
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('*.cabal') }} }}
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('*.cabal') }}
       - name: build dependencies
         run: cabal build --only-dependencies
       - name: build
