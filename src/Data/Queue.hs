@@ -8,10 +8,7 @@ module Data.Queue (
     dequeue
 ) where
 
-data Queue a = Queue {
-    inq :: [a],
-    outq :: [a]
-}
+data Queue a = Queue [a] [a] -- Queue inlist uitlist
 
 empty :: Queue a
 empty = Queue [] []
