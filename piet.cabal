@@ -80,7 +80,7 @@ executable piet
 
     -- Other library packages from which modules are imported.
     build-depends:    
-        base ^>=4.21.0.0,
+        base ^>=4.20.0.0,
         JuicyPixels,
         containers,
         array,

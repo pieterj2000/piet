@@ -17,7 +17,7 @@ singleton :: a -> Queue a
 singleton a = Queue [] [a]
 
 fromList :: [a] -> Queue a
-fromList xs = Queue [] xs
+fromList = Queue []
 
 toList :: Queue a -> [a]
 toList (Queue i o) = o ++ (reverse i)
