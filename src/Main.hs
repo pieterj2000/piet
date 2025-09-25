@@ -121,9 +121,14 @@ getCodel im startp = (pointsincodel, Codel lness clr codelmap)
 
 
 getCodels :: Image (Lightness, Color) -> ImageM (Codel (Int, Int))
-getCodels im = undefined
+getCodels im = foldr f M.empty startQueue
     where
-        startQueue = Q.fromList $ A.indices im
+        startQueue = A.indices im
+
+        f :: (Int, Int) -> ImageM (Codel (Int, Int)) -> ImageM (Codel (Int, Int))
+        f p m = 
+            let (points, codel) = getCodel im p 
+            in foldr (\q -> M.insert q codel) m points
 
 
 
@@ -134,7 +139,9 @@ main = do
     case ima of
         Nothing -> return ()
         Just im -> do
-            let (list, cdl) = getCodel im (0,0)
-            print list
-            print (lightness cdl)
-            print $ nextCodel cdl
+            -- let (list, cdl) = getCodel im (0,0)
+            -- print list
+            -- print (lightness cdl)
+            -- print $ nextCodel cdl
+            let m = getCodels im
+            print m
