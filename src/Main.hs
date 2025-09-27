@@ -9,6 +9,7 @@ import Data.Function (on)
 import Data.Ord (comparing, Down (Down))
 import Data.List (sortOn, group, groupBy)
 
+
 import qualified Debug.Trace as Debug
 
 type Image a = A.Array (Int, Int) a
@@ -129,6 +130,9 @@ getCodels im = foldr f M.empty startQueue
         f p m = 
             let (points, codel) = getCodel im p 
             in foldr (\q -> M.insert q codel) m points
+
+
+
 
 
 
