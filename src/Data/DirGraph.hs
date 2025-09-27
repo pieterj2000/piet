@@ -20,10 +20,9 @@ newtype Vertex = Vertex Int deriving Show
 -- index (Vertex x _) = x
 
 --data Edge v e = Edge e (Vertex v)
-data Arc v e = Arc e Int 
 
-newtype Graph v e = Graph (M.IntMap (v, M.IntMap e)) deriving Show
---newtype Graph v e = Graph (M.IntMap [Arc v e])
+--newtype Graph v e = Graph (M.IntMap (v, M.IntMap e)) deriving Show
+newtype Graph v e = Graph (M.IntMap (v, [(Int, e)])) deriving Show
 
 empty :: Graph v e
 empty = Graph $ M.empty
@@ -31,13 +30,14 @@ empty = Graph $ M.empty
 insertVertex :: v -> Graph v e -> (Vertex, Graph v e)
 insertVertex v (Graph m) = 
     let index = 1 + (fromMaybe (-1) . (fmap fst) $ M.lookupMax m)
-        graph = Graph $ M.insert index (v,M.empty) m
+        graph = Graph $ M.insert index (v,[]) m
     in (Vertex index, graph)
 
 -- | Warning: if there is already an arc between these vertices, it is overwritten.
+--   TODO: DIT KLOPT NIET, multi-arcs worden nou wel toegestaan. We gebruiken nu wel een [(int, edge)] layout dus dat is niet bepaald efficient mogelijk
 insertArc :: Vertex -> Vertex -> e -> Graph v e -> Graph v e
 insertArc (Vertex i1) (Vertex i2) edgeval (Graph m) = 
-    Graph $ M.adjust (second $ M.insert i2 edgeval) i1 m
+    Graph $ M.adjust (second $ ( (i2, edgeval) : )) i1 m
 
 
 fromList :: Ord l => [(l,v)] -> [(l,l,e)] -> ( Graph v e, l -> Vertex )
