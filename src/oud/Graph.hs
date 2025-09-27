@@ -1,4 +1,4 @@
-module Data.Graph  where
+module Data.Graph () where
 
 
 data Vertex a = Vertex {
