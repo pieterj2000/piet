@@ -9,7 +9,7 @@ import qualified Data.Set as S
 
 main :: IO ()
 main = do
-    ima <- codelsFromImage "./tests/Piet_hello_small.png" -- "./tests/Piet_hello_small.png"
+    ima <- codelsFromImage "./tests/Piet_piet_small.png" -- "./tests/Piet_hello_small.png"
     --print ima
     case ima of
         Left err -> putStrLn err
