@@ -18,13 +18,16 @@ import Data.Ord (Down (Down))
 import Control.Monad ((<=<))
 import qualified Data.DirGraph as G
 import Data.Maybe (isJust)
+import Instructions
+
+import CodelType
+
+import Control.Monad.State
 
     
 type Image a = A.Array (Int, Int) a
 type ImageM a = M.Map (Int, Int) a
 
-data DP = N | E | S | W deriving (Eq, Show, Enum, Ord)
-data CC = CCLeft | CCRight deriving (Eq, Show, Ord)
 data IndirType a = None | ThroughWhite a DP CC | Directly a deriving (Eq, Show, Ord)
 fromIndir :: IndirType a -> a
 fromIndir None = error "fromIndir None"
@@ -43,8 +46,8 @@ data Codel a = Codel {
     nextCodel :: M.Map (DP,CC) (IndirType a)
 } deriving (Show, Eq, Ord)
 
-data Color = Red | Yellow | Green | Cyan | Blue | Magenta | White | Black deriving (Eq, Show, Ord)
-data Lightness = Light | Normal | Dark deriving (Eq, Show, Ord)
+data Color = Red | Yellow | Green | Cyan | Blue | Magenta | White | Black deriving (Eq, Enum, Show, Ord)
+data Lightness = Light | Normal | Dark deriving (Eq, Enum, Show, Ord)
 
 pixeltocolor :: PixelRGB8 -> Either String (Lightness, Color)
 pixeltocolor (PixelRGB8 0xFF 0xC0 0xC0) = Right (Light, Red)
@@ -68,6 +71,32 @@ pixeltocolor (PixelRGB8 0xC0 0x00 0xC0) = Right (Dark, Magenta)
 pixeltocolor (PixelRGB8 0xFF 0xFF 0xFF) = Right (Normal, White)
 pixeltocolor (PixelRGB8 0x00 0x00 0x00) = Right (Normal, Black)
 pixeltocolor x                          = Left $ "Error pixeltocolor: unknown color " ++ show x
+
+decodeInstruction' :: Int -> Int -> Int -> PInstruction
+decodeInstruction' 1 0 s = PPush s
+decodeInstruction' 2 0 _ = PPop
+decodeInstruction' 0 1 _ = PAdd
+decodeInstruction' 1 1 _ = PSubstract
+decodeInstruction' 2 1 _ = PMultiply
+decodeInstruction' 0 2 _ = PDivide
+decodeInstruction' 1 2 _ = PMod
+decodeInstruction' 2 2 _ = PNot
+decodeInstruction' 0 3 _ = PGreater
+decodeInstruction' 1 3 _ = PPointer
+decodeInstruction' 2 3 _ = PSwitch
+decodeInstruction' 0 4 _ = PDuplicate
+decodeInstruction' 1 4 _ = PRoll
+decodeInstruction' 2 4 _ = PInNum
+decodeInstruction' 0 5 _ = PInChar
+decodeInstruction' 1 5 _ = POutNum
+decodeInstruction' 2 5 _ = POutChar
+decodeInstruction' l c s = error $ "Decodeinstruction error. Lightness diff=" ++ show l ++ ", Color diff=" ++ show c ++ ", val=" ++ show s
+
+decodeInstruction :: (Lightness, Color, Int) -> (Lightness, Color) -> PInstruction
+decodeInstruction (l1,c1, val) (l2,c2) =
+    let lchange = ((fromEnum l2) - (fromEnum l1)) `mod` 3
+        cchange = ((fromEnum c2) - (fromEnum c1)) `mod` 6
+    in decodeInstruction' lchange cchange val
 
 
 step :: (Int, Int) -> DP -> (Int, Int)
@@ -197,6 +226,68 @@ codelMapToGraph (im, s) =
         startnode = labeltovertex $ im M.! (0,0)
     in (graph, startnode)
 
+uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
+uncurry3 f (a,b,c) = f a b c
+
+
+data TMPInstruction = ORGEdge PInstruction | ORGNodeNop | ORGNodeStop
+
+instGraphFromCodelGraph2 :: G.Graph (Lightness, Color, Int) (DP,CC, IndirType ()) -> G.Vertex -> G.Graph [TMPInstruction] (DP,CC)
+instGraphFromCodelGraph2 codelgraph startnode = 
+    let -- map alle arcs met G.mapArcs dat ze een extra Maybe Vertex ding hebben. 
+        -- (initieel allemalal op Nothing)
+
+        edges = G.allArcs codelgraph
+
+                -- OKE HOE WE HET GAAN AANPAKKEN:
+                {-
+                    Map iedere edge naar een extra node tussen de twee nodes, met daarin instructie
+                    of nop als het via niks is
+                    Hiervoor moeten we nog wel iets van functionaliteit in DirGraph maken, misschien gewoon zo simpel als mapEdgeToVertex of zo
+
+                    Dan, map iedere node naar NOP of STOP afhankelijk van hoeveel uitgaande edges het heeft
+
+                    Tot slot: moeten we iets van een systeem bedenken om stukjes graaf te kunnen transformeren:
+                        bijvoorbeeld: een switch insructgie zal een node met switch zijn met een enkele arc naar een node met NOP, maar wel met meerdere uitgaande edges
+                        die moeten samengevoegd worden
+                    dit is sowieso ook nodig, als we bijvoorbeeld pinhole dingen willen doen denk ik
+                
+                -}
+        edgemapper arc@(v1, (d,c,it), v2)  = 
+            let v1val = G.getVal v1 codelgraph
+                (l2,c2,_) = G.getVal v2 codelgraph
+                instruction = decodeInstruction v1val (l2,c2)
+                arc' = (v1, (d,c), v2)
+            in case it of
+                None -> \g -> (uncurry3 G.removeArc arc') g -- remove arc
+                ThroughWhite () dp cc -> \g ->
+                    let g1 = uncurry3 G.removeArc arc' g
+                        (nieuwevertex, g2) = G.insertVertex [ORGEdge PNop, ORGEdge $ PSetDP dp, ORGEdge $ PSetCC cc] g1
+                        g3 = G.insertArc v1 nieuwevertex (d,c) g2
+                        g4 = G.insertArc nieuwevertex v2 (dp,cc) g3
+                    in g4
+                Directly () -> \g ->
+                    let g1 = uncurry3 G.removeArc arc' g
+                        (nieuwevertex, g2) = G.insertVertex [ORGEdge instruction] g1
+                        g3 = G.insertArc v1 nieuwevertex (d,c) g2
+                        g4 = G.insertArc nieuwevertex v2 (d,c) g3
+                    in g4
+
+        graph' = G.mapVertices (\v ->
+            let value = G.getVal v codelgraph
+                arcs = G.getArcs v codelgraph
+                isNone (_, (_,_, None)) = True
+                isNone _ = False
+            in if all isNone arcs then [ORGNodeStop] else [ORGNodeNop]) codelgraph
+        graph'' = G.mapArcs (\v1 v2 (dp,cc,typ) -> (dp,cc) ) graph'
+
+        graphfunc = foldr1 (.) $ map edgemapper edges
+
+    in graphfunc graph''
+
+
+instGraphFromCodelGraph :: G.Graph (Lightness, Color, Int) (DP,CC, IndirType ()) -> G.Vertex -> G.Graph [PInstruction] (DP,CC)
+instGraphFromCodelGraph = undefined
 
 {-
 Plan voor morgen:

@@ -73,9 +73,11 @@ executable piet
 
     -- Modules included in this executable, other than Main.
     other-modules:
-        Data.Queue,
         Codel,
-        Data.DirGraph
+        Instructions,
+        Data.Queue,
+        Data.DirGraph,
+        CodelType
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
@@ -86,6 +88,7 @@ executable piet
         JuicyPixels,
         containers,
         array,
+        mtl
 
 
     -- Directories containing source files.
