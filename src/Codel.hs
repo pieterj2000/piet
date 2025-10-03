@@ -4,7 +4,8 @@ module Codel (
     Lightness,
     Image,
     codelsFromImage,
-    codelMapToGraph
+    codelMapToGraph,
+    instGraphFromCodelGraph1
 ) where
 
     
@@ -13,7 +14,7 @@ import qualified Data.Map as M -- TODO Intmap of Array of Vector
 import qualified Data.Set as S
 import Codec.Picture hiding (Image)
 import Data.Function (on)
-import Data.List (sortOn, groupBy)
+import Data.List (sortOn, groupBy, (\\))
 import Data.Ord (Down (Down))
 import Control.Monad ((<=<))
 import qualified Data.DirGraph as G
@@ -23,6 +24,9 @@ import Instructions
 import CodelType
 
 import Control.Monad.State
+
+import qualified Debug.Trace
+import qualified Debug.Trace as Debug
 
     
 type Image a = A.Array (Int, Int) a
@@ -230,14 +234,17 @@ uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
 uncurry3 f (a,b,c) = f a b c
 
 
-data TMPInstruction = ORGEdge PInstruction | ORGNodeNop | ORGNodeStop
+data TMPInstruction = ORGEdge PInstruction | ORGNodeNop | ORGNodeStop deriving (Show)
 
-instGraphFromCodelGraph2 :: G.Graph (Lightness, Color, Int) (DP,CC, IndirType ()) -> G.Vertex -> G.Graph [TMPInstruction] (DP,CC)
-instGraphFromCodelGraph2 codelgraph startnode = 
+instGraphFromCodelGraph1 :: G.Graph (Lightness, Color, Int) (DP,CC, IndirType ()) -> G.Graph [TMPInstruction] (DP,CC)
+instGraphFromCodelGraph1 codelgraph = 
     let -- map alle arcs met G.mapArcs dat ze een extra Maybe Vertex ding hebben. 
         -- (initieel allemalal op Nothing)
 
         edges = G.allArcs codelgraph
+
+        isColor v = let (_,c,_) = G.getVal v codelgraph in c /= Black && c /= White
+        edges' = filter (\(v1,_,v2) -> isColor v1 && isColor v2) edges
 
                 -- OKE HOE WE HET GAAN AANPAKKEN:
                 {-
@@ -254,28 +261,30 @@ instGraphFromCodelGraph2 codelgraph startnode =
                 
                 -}
         edgemapper arc@(v1, (d,c,it), v2)  = 
-            let v1val = G.getVal v1 codelgraph
+            let v1val@(l1,c1,val) = G.getVal v1 codelgraph
                 (l2,c2,_) = G.getVal v2 codelgraph
                 instruction = decodeInstruction v1val (l2,c2)
                 arc' = (v1, (d,c), v2)
-            in case it of
-                None -> \g -> (uncurry3 G.removeArc arc') g -- remove arc
-                ThroughWhite () dp cc -> \g ->
-                    let g1 = uncurry3 G.removeArc arc' g
-                        (nieuwevertex, g2) = G.insertVertex [ORGEdge PNop, ORGEdge $ PSetDP dp, ORGEdge $ PSetCC cc] g1
-                        g3 = G.insertArc v1 nieuwevertex (d,c) g2
-                        g4 = G.insertArc nieuwevertex v2 (dp,cc) g3
-                    in g4
-                Directly () -> \g ->
-                    let g1 = uncurry3 G.removeArc arc' g
-                        (nieuwevertex, g2) = G.insertVertex [ORGEdge instruction] g1
-                        g3 = G.insertArc v1 nieuwevertex (d,c) g2
-                        g4 = G.insertArc nieuwevertex v2 (d,c) g3
-                    in g4
+            in if c1 == Black || c2 == Black || c1 == White || c2 == White
+                then uncurry3 G.removeArc arc'
+                else case it of
+                    None -> \g -> (uncurry3 G.removeArc arc') (error "asdfasdf" g) -- als het goed is komt deze nooit voor, 
+                                            -- omdat in codelMapToGraph er al op gefiltert wordt: filter ((/= None) . snd)
+                    ThroughWhite () dp cc -> \g ->
+                        let g1 = uncurry3 G.removeArc arc' g
+                            (nieuwevertex, g2) = G.insertVertex [ORGEdge PNop, ORGEdge $ PSetDP dp, ORGEdge $ PSetCC cc] g1
+                            g3 = G.insertArc v1 nieuwevertex (d,c) g2
+                            g4 = G.insertArc nieuwevertex v2 (dp,cc) g3
+                        in g4
+                    Directly () -> \g ->
+                        let g1 = uncurry3 G.removeArc arc' g
+                            (nieuwevertex, g2) = G.insertVertex [ORGEdge instruction ] g1
+                            g3 = G.insertArc v1 nieuwevertex (d,c) g2
+                            g4 = G.insertArc nieuwevertex v2 (d,c) g3
+                        in g4
 
         graph' = G.mapVertices (\v ->
-            let value = G.getVal v codelgraph
-                arcs = G.getArcs v codelgraph
+            let arcs = G.getArcs v codelgraph
                 isNone (_, (_,_, None)) = True
                 isNone _ = False
             in if all isNone arcs then [ORGNodeStop] else [ORGNodeNop]) codelgraph
@@ -285,6 +294,16 @@ instGraphFromCodelGraph2 codelgraph startnode =
 
     in graphfunc graph''
 
+verify :: Eq e => G.Graph v e -> [(G.Vertex, e, G.Vertex)]
+verify g = (G.allArcs g) \\ (G.allInArcs g)
+verify2 :: Eq e => G.Graph v e -> [(G.Vertex, e, G.Vertex)]
+verify2 g = (G.allArcs g) \\ ((G.allArcs g) \\ (G.allInArcs g))
+
+nextseq :: (DP, CC) -> [(DP, CC)]
+nextseq (d,c) = take 8 $ (d,c) : (d, toggleCC c) : nextseq (rot CCRight d, toggleCC c)
+
+instGraphFromCodelGraph2 :: G.Graph [TMPInstruction] (DP,CC) -> G.Vertex -> G.Graph [PInstruction] (DP,CC)
+instGraphFromCodelGraph2 codelgraph startnode = undefined
 
 instGraphFromCodelGraph :: G.Graph (Lightness, Color, Int) (DP,CC, IndirType ()) -> G.Vertex -> G.Graph [PInstruction] (DP,CC)
 instGraphFromCodelGraph = undefined

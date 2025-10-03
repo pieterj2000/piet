@@ -1,6 +1,6 @@
 module Main (main) where
 
-import Codel (codelsFromImage, codelMapToGraph)
+import Codel (codelsFromImage, codelMapToGraph, instGraphFromCodelGraph1)
 
 
 
@@ -26,5 +26,11 @@ main = do
             let (g,start) = codelMapToGraph c
                 g' = G.mapArcs (\v1 v2 (dp,cc, _) -> (show v1 ++ show v2 ++ show dp ++ show cc)) g
             print g
-            print g'
+            --print g'
             print start
+            putStrLn ""
+            putStrLn ""
+            let g'' = instGraphFromCodelGraph1 g
+            print g''
+
+            
