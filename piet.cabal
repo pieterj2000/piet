@@ -77,7 +77,8 @@ executable piet
         Instructions,
         Data.Queue,
         Data.DirGraph,
-        CodelType
+        CodelType,
+        Utils
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:

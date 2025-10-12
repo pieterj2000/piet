@@ -5,7 +5,10 @@ module Codel (
     Image,
     codelsFromImage,
     codelMapToGraph,
-    instGraphFromCodelGraph1
+    edgesToInstrNodes,
+--    instGraphFromCodelGraph2,
+    addStartNode,
+    instGraphFromCodelGraph
 ) where
 
     
@@ -14,19 +17,25 @@ import qualified Data.Map as M -- TODO Intmap of Array of Vector
 import qualified Data.Set as S
 import Codec.Picture hiding (Image)
 import Data.Function (on)
-import Data.List (sortOn, groupBy, (\\))
+import Data.List (sortOn, groupBy, (\\), nub, singleton)
 import Data.Ord (Down (Down))
 import Control.Monad ((<=<))
 import qualified Data.DirGraph as G
-import Data.Maybe (isJust)
+import Data.Maybe (isJust, mapMaybe, fromJust)
 import Instructions
 
 import CodelType
+
+import Utils
 
 import Control.Monad.State
 
 import qualified Debug.Trace
 import qualified Debug.Trace as Debug
+import Data.DirGraph (splitNodesIndegOne, contractGraph)
+import Data.Tuple (swap)
+import Control.Applicative (asum)
+import Control.Arrow (second, Arrow (first))
 
     
 type Image a = A.Array (Int, Int) a
@@ -230,14 +239,10 @@ codelMapToGraph (im, s) =
         startnode = labeltovertex $ im M.! (0,0)
     in (graph, startnode)
 
-uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
-uncurry3 f (a,b,c) = f a b c
+data TMPInstruction = ORGEdge [PInstruction] | ORGNodeNop | ORGNodeStop deriving (Show, Eq)
 
-
-data TMPInstruction = ORGEdge PInstruction | ORGNodeNop | ORGNodeStop deriving (Show)
-
-instGraphFromCodelGraph1 :: G.Graph (Lightness, Color, Int) (DP,CC, IndirType ()) -> G.Graph [TMPInstruction] (DP,CC)
-instGraphFromCodelGraph1 codelgraph = 
+edgesToInstrNodes :: G.Graph (Lightness, Color, Int) (DP,CC, IndirType ()) -> G.Graph TMPInstruction (DP,CC)
+edgesToInstrNodes codelgraph = 
     let -- map alle arcs met G.mapArcs dat ze een extra Maybe Vertex ding hebben. 
         -- (initieel allemalal op Nothing)
 
@@ -272,13 +277,13 @@ instGraphFromCodelGraph1 codelgraph =
                                             -- omdat in codelMapToGraph er al op gefiltert wordt: filter ((/= None) . snd)
                     ThroughWhite () dp cc -> \g ->
                         let g1 = uncurry3 G.removeArc arc' g
-                            (nieuwevertex, g2) = G.insertVertex [ORGEdge PNop, ORGEdge $ PSetDP dp, ORGEdge $ PSetCC cc] g1
+                            (nieuwevertex, g2) = G.insertVertex (ORGEdge [PNop, PSetDP dp, PSetCC cc]) g1
                             g3 = G.insertArc v1 nieuwevertex (d,c) g2
                             g4 = G.insertArc nieuwevertex v2 (dp,cc) g3
                         in g4
                     Directly () -> \g ->
                         let g1 = uncurry3 G.removeArc arc' g
-                            (nieuwevertex, g2) = G.insertVertex [ORGEdge instruction ] g1
+                            (nieuwevertex, g2) = G.insertVertex (ORGEdge [instruction]) g1
                             g3 = G.insertArc v1 nieuwevertex (d,c) g2
                             g4 = G.insertArc nieuwevertex v2 (d,c) g3
                         in g4
@@ -287,7 +292,7 @@ instGraphFromCodelGraph1 codelgraph =
             let arcs = G.getArcs v codelgraph
                 isNone (_, (_,_, None)) = True
                 isNone _ = False
-            in if all isNone arcs then [ORGNodeStop] else [ORGNodeNop]) codelgraph
+            in if all isNone arcs then ORGNodeStop else ORGNodeNop) codelgraph
         graph'' = G.mapArcs (\v1 v2 (dp,cc,typ) -> (dp,cc) ) graph'
 
         graphfunc = foldr1 (.) $ map edgemapper edges
@@ -299,14 +304,130 @@ verify g = (G.allArcs g) \\ (G.allInArcs g)
 verify2 :: Eq e => G.Graph v e -> [(G.Vertex, e, G.Vertex)]
 verify2 g = (G.allArcs g) \\ ((G.allArcs g) \\ (G.allInArcs g))
 
+addStartNode :: G.Vertex -> G.Graph TMPInstruction (DP,CC) -> (G.Vertex, G.Graph TMPInstruction (DP,CC))
+addStartNode startnode graph = 
+    let (v,g') = G.insertVertex (ORGEdge [PNop]) graph
+        g'' = G.insertArc v startnode (E, CCLeft) g'
+    in (v, g'')
+
+
 nextseq :: (DP, CC) -> [(DP, CC)]
 nextseq (d,c) = take 8 $ (d,c) : (d, toggleCC c) : nextseq (rot CCRight d, toggleCC c)
 
-instGraphFromCodelGraph2 :: G.Graph [TMPInstruction] (DP,CC) -> G.Vertex -> G.Graph [PInstruction] (DP,CC)
-instGraphFromCodelGraph2 codelgraph startnode = undefined
 
-instGraphFromCodelGraph :: G.Graph (Lightness, Color, Int) (DP,CC, IndirType ()) -> G.Vertex -> G.Graph [PInstruction] (DP,CC)
-instGraphFromCodelGraph = undefined
+doeInstrDir :: (DP,CC) -> TMPInstruction -> [(DP,CC)]
+doeInstrDir dir (ORGEdge []) = [dir]
+doeInstrDir (dp,cc) (ORGEdge ( (PSetDP nieuwdp) : ins )) = doeInstrDir (nieuwdp, cc) $ ORGEdge ins
+doeInstrDir (dp,cc) (ORGEdge ( (PSetCC nieuwcc) : ins )) = doeInstrDir (dp, nieuwcc) $ ORGEdge ins
+doeInstrDir (dp,cc) (ORGEdge ( PPointer : ins )) = concatMap (\nieuwdp -> doeInstrDir (nieuwdp, cc) $ ORGEdge ins) [N, E, S, W]
+doeInstrDir (dp,cc) (ORGEdge ( PSwitch : ins)) = concatMap (\nieuwcc -> doeInstrDir (dp, nieuwcc) $ ORGEdge ins) [CCRight, CCLeft]
+doeInstrDir dir (ORGEdge (i:ins)) = doeInstrDir dir $ ORGEdge ins
+-- eigenlijk zou hier nog een check moeten zitten voor PStop, maar als het goed is kan dat op dit punt nooit voorkomen
+doeInstrDir dir (ORGNodeNop) = [dir]
+doeInstrDir dir (ORGNodeStop) = []
+
+
+tmpInstrToInstr :: TMPInstruction -> [PInstruction]
+tmpInstrToInstr (ORGEdge ins) = ins
+tmpInstrToInstr ORGNodeNop = [PNop]
+tmpInstrToInstr ORGNodeStop = [PStop]
+
+
+--doeStap :: G.Vertex -> (G.Graph [TMPInstruction] (DP,CC), G.Graph [PInstruction] (DP,CC)) -> (G.Graph [TMPInstruction] (DP,CC), G.Graph [PInstruction] (DP,CC))
+
+doeStap :: [(DP,CC)] -> G.Zipper (TMPInstruction, Maybe G.Vertex) (DP, CC) (G.Graph [PInstruction] (DP, CC)) 
+            -> G.Zipper (TMPInstruction, Maybe G.Vertex) (DP, CC) (G.Graph [PInstruction] (DP, CC))
+doeStap dirs zip = case G.getAtZipper zip of
+    (_, Just _) -> zip
+    (instructions, Nothing) -> 
+        let            
+            -- maak lege vertex in nieuwe graaf voor huidige vertex
+            ins = tmpInstrToInstr instructions
+            zip1 = (G.insertVertex ins) <$> zip
+            v = fst $ G.getZipperVal zip1
+            zip2 = snd <$> zip1
+            zip3 = G.changeAtZipper (second $ const $ Just v) zip2
+
+            -- pak alle relevante edges
+            dirsafterinstrs = nub $ dirs >>= flip doeInstrDir instructions
+            
+
+            isedge = instructions /= ORGNodeNop && instructions /= ORGNodeStop
+
+            alledges = map swap $ G.getZipperArcs zip
+
+            edges
+                | isedge = map (\(label,u) -> (u,label,dirsafterinstrs)) alledges
+                | otherwise = 
+                    map (\(dir,vert) -> (vert, dir, [dir])) $ 
+                    nub $ 
+                    mapMaybe (\d -> 
+                        asum $ 
+                        map (\d' -> lookup' d' alledges) $ 
+                        nextseq d
+                        ) $ 
+                    dirsafterinstrs
+
+
+            --  zorg dat die edges ook vertices hebben door recursief doeStap te doen, en maak meteen arcs in nieuwe graaf voor die edges
+            zip4 = foldr (
+                \(vertex, dir, directions) zipper -> 
+                    (\zippie -> (G.insertArc v (fromJust . snd $ G.getAtZipper $ G.moveZipper vertex zippie) dir) <$> zippie) $
+                    doeStap directions $ 
+                    G.moveZipper vertex zipper
+                    ) zip3 edges
+        in zip4
+
+        
+
+
+
+makeInstructionGraphWalk :: G.Vertex -> G.Graph TMPInstruction (DP,CC) -> (G.Vertex, G.Graph [PInstruction] (DP,CC))
+makeInstructionGraphWalk startnode graph =
+    let graph' = G.mapVertices (\v -> (G.getVal v graph, Nothing)) graph
+        zipper = G.getZipper startnode G.empty graph'
+        zipper' = doeStap [(E, CCLeft)] zipper
+        zipper'' = G.moveZipper startnode zipper'
+        (oudegraph', _, nieuwegraph) = G.fromZipper zipper''
+        startnode' = fromJust . snd $ G.getVal startnode oudegraph'
+    in (startnode', nieuwegraph)
+
+-- instGraphFromCodelGraph2 :: G.Vertex -> G.Graph TMPInstruction (DP,CC) -> (G.Vertex, G.Graph TMPInstruction (DP,CC))
+-- instGraphFromCodelGraph2 startnode codelgraph = 
+--     let (startnode', graph') = contractGraph (++) startnode codelgraph
+
+--         func (ORGEdge PSwitch : ORGNodeNop : is) = func (ORGEdge PSwitch : is)
+--         func (ORGEdge PPointer : ORGNodeNop : is) = func (ORGEdge PPointer : is)
+--         func (ORGNodeNop : is) = func is
+--         func (ORGNodeStop : is) = func is
+
+
+--     {-
+--         Oke dit gaat niet werken zoals gepland. contractGraph zal niet iedere edgenode met z'n opvolger samen, want die opvolgcodel kan natuurlijk 
+--         nog andere incoming edges hebben, en dan doet hij het natuurlijk niet. Wat dan wel?
+--         -   Ik denk dat er een stap nog vooraf aan moet komen dat de vertices moet `splitsen', i.e. een kopie van de vertex voor ieder van zijn 
+--             inkomende arcs. Dan werkt de contraction stap namelijk wel. Het is denk het beste om deze dan nog vóór edgesToInstrNodes te 
+--             draaien, aangezien hij dan niet alle nodes die van edges komen hoeft te processen (ook al skipt hij die vanwege indegree=1)
+
+--             Het is logisch dat er zo een proces moet komen, aangezien het natuurlijk uitmaakt (ook in het interpretatie-proces) van welke kant/edge
+--             je in de codel komt
+            
+            
+--         Oke die optie van nodes spliotten gaan we niet doen. Dan ontploft het echt extreem
+--         we gaan gewoon lopen vanaf de startnode denk ik. En dan zien we wel        
+--         Dus: We gaan lopen, en dan contracten we de graaf
+
+--         lopen doen we door alles eerst een mapVertices te doen van a naar (a, Maybe Vertex) en een nieuwe graaf te bouwen met alleen de relevante
+--         gedeeltes
+--     -}
+
+--     in (startnode', graph')
+
+
+-- TODO dit moet naar PInstruction niet naar TMPInstruction
+instGraphFromCodelGraph ::  G.Vertex -> G.Graph (Lightness, Color, Int) (DP,CC, IndirType ()) -> (G.Vertex, G.Graph [PInstruction] (DP,CC))
+--instGraphFromCodelGraph startnode = {-(uncurry instGraphFromCodelGraph2) .-} (addStartNode startnode) . edgesToInstrNodes
+instGraphFromCodelGraph startnode = uncurry makeInstructionGraphWalk . (addStartNode startnode) . edgesToInstrNodes
 
 {-
 Plan voor morgen:

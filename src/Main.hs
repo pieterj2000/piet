@@ -1,6 +1,6 @@
 module Main (main) where
 
-import Codel (codelsFromImage, codelMapToGraph, instGraphFromCodelGraph1)
+import Codel
 
 
 
@@ -30,7 +30,28 @@ main = do
             print start
             putStrLn ""
             putStrLn ""
-            let g'' = instGraphFromCodelGraph1 g
-            print g''
+            let g1 = g --G.splitNodesIndegOne g
+                g2 = edgesToInstrNodes g1
+                g3 = addStartNode start g2
+                --g4 = (uncurry instGraphFromCodelGraph2) g3
+                --aaa = (uncurry instGraphFromCodelGraph2) . (addStartNode startnode) . edgesToInstrNodes . splitNodesIndegOne
 
-            
+
+                gfinal = instGraphFromCodelGraph start g
+            putStrLn ""
+            putStrLn ""
+            print g1
+            putStrLn ""
+            putStrLn ""
+            print g2
+            putStrLn ""
+            putStrLn ""
+            print g3
+            putStrLn ""
+            putStrLn ""
+            --print g4
+            print gfinal
+            putStrLn ""
+            putStrLn ""
+            --print g1
+

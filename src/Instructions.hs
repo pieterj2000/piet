@@ -27,5 +27,5 @@ data PInstruction
     | PStop -- eigen toegevoegd
     | PSetDP DP -- eigen toegevoegd
     | PSetCC CC -- eigen toegevoegd
-    deriving (Show)
+    deriving (Show, Eq)
 
