@@ -6,6 +6,7 @@ import Codel
 
 import qualified Data.Set as S
 import qualified Data.DirGraph as G
+import Interpreter (runProgram)
 
 
 main :: IO ()
@@ -38,6 +39,8 @@ main = do
 
 
                 gfinal = instGraphFromCodelGraph start g
+
+                (startnode, echtegraaf) = gfinal
             putStrLn ""
             putStrLn ""
             print g1
@@ -55,3 +58,4 @@ main = do
             putStrLn ""
             --print g1
 
+            runProgram startnode echtegraaf

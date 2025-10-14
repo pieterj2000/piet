@@ -118,14 +118,6 @@ step (x,y) E = (x+1,y)
 step (x,y) S = (x,y+1)
 step (x,y) W = (x-1,y)
 
-rot :: CC -> DP -> DP
-rot CCLeft = toEnum . (`rem` 4) . (+4) . pred . fromEnum
-rot CCRight = toEnum . (`rem` 4) . (+4) . succ . fromEnum
-
-toggleCC :: CC -> CC
-toggleCC CCLeft = CCRight
-toggleCC CCRight = CCLeft
-
 neighbours :: (Int, Int) -> [(Int, Int)]
 neighbours p = map (step p) [N,E,S,W]
 
@@ -158,7 +150,7 @@ getCodel im startp = (pointsincodel, Codel lness clr size codelmap)
                 edge = head $ groupBy ((==) `on` xy) $ sortt points
             in case edge of
                 [x] -> x
-                xs  -> getnext' xs (rot cc dp) undefined
+                xs  -> getnext' xs (rotDP cc dp) undefined
                 
         getnextWhite :: (Int, Int) -> DP -> CC -> Maybe ((Int, Int), DP, CC)
         getnextWhite initP initDP initCC = whiteStep (initP, initDP, initCC) S.empty
@@ -171,7 +163,7 @@ getCodel im startp = (pointsincodel, Codel lness clr size codelmap)
                         inbound = A.inRange (A.bounds im) nextpunt
                         (_, nextpuntColor) = im A.! nextpunt
                     in if (not inbound) || (nextpuntColor == Black)
-                        then whiteStep (p, rot CCRight dp, toggleCC cc) algeweest'
+                        then whiteStep (p, rotDP CCRight dp, toggleCC cc) algeweest'
                         else if nextpuntColor == White
                                 then whiteStep (nextpunt, dp, cc) algeweest'
                                 else Just (nextpunt, dp, cc)                
@@ -310,9 +302,6 @@ addStartNode startnode graph =
         g'' = G.insertArc v startnode (E, CCLeft) g'
     in (v, g'')
 
-
-nextseq :: (DP, CC) -> [(DP, CC)]
-nextseq (d,c) = take 8 $ (d,c) : (d, toggleCC c) : nextseq (rot CCRight d, toggleCC c)
 
 
 doeInstrDir :: (DP,CC) -> TMPInstruction -> [(DP,CC)]
