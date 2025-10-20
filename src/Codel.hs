@@ -17,7 +17,7 @@ import qualified Data.Map as M -- TODO Intmap of Array of Vector
 import qualified Data.Set as S
 import Codec.Picture hiding (Image)
 import Data.Function (on)
-import Data.List (sortOn, groupBy, (\\), nub, singleton)
+import Data.List (sortOn, groupBy, (\\), nub, singleton, group)
 import Data.Ord (Down (Down))
 import Control.Monad ((<=<))
 import qualified Data.DirGraph as G
@@ -121,8 +121,8 @@ step (x,y) W = (x-1,y)
 neighbours :: (Int, Int) -> [(Int, Int)]
 neighbours p = map (step p) [N,E,S,W]
 
-getCodel :: Image (Lightness, Color) -> (Int, Int) -> ([(Int, Int)], Codel (Int, Int))
-getCodel im startp = (pointsincodel, Codel lness clr size codelmap)
+getCodel :: Image (Lightness, Color) -> Int -> (Int, Int) -> ([(Int, Int)], Codel (Int, Int))
+getCodel im scale startp = (pointsincodel, Codel lness clr size codelmap)
     where
         col@(lness, clr) = im A.! startp
         dfs :: (Int, Int) -> S.Set (Int, Int) -> S.Set (Int, Int)
@@ -134,7 +134,7 @@ getCodel im startp = (pointsincodel, Codel lness clr size codelmap)
             in foldr dfs s' n''
 
         pointsincodel = S.toList $ dfs startp S.empty
-        size = length pointsincodel
+        size = (length pointsincodel) `div` (scale*scale)
         -- TODO: Size is nu letterlijk aantal pixels. idealiter gaat dat automatisch
         -- Ofwel in getCodels (of ergens anders) de `pixel per codel' berkeenen en hier
         -- als paramaeter doorgooien en aanpassen. Anders kan ook ergens anders berekend 
@@ -204,18 +204,31 @@ getImage file = do
 
 
 codelsFromImage :: String -> IO (Either String (ImageM (Codel (Int, Int)), S.Set (Codel (Int, Int))))
-codelsFromImage = (pure . (getCodels <$>)) <=< getImage 
+codelsFromImage = (pure . (getCodels <$>) . (Debug.traceShowId)) <=< getImage 
     
 
+-- | gcd function which is lazy in second arguments, i.e. gcd' 1 _ = 1 short-circuits
+gcd' :: Int -> Int -> Int
+gcd' 1 _ = 1
+gcd' a b = gcd a b
 
 getCodels :: Image (Lightness, Color) -> (ImageM (Codel (Int, Int)), S.Set (Codel (Int, Int)))
 getCodels im = foldr f (M.empty, S.empty) startQueue
     where
+        (width, height) = snd $ A.bounds im
+        row y = [ im A.! (x,y) | x<-[0..width] ]
+        rows = [ map length $ group $ row y | y<-[0..height] ]
+        col x = [ im A.! (x,y) | y<-[0..height] ]
+        cols = [ map length $ group $ col x | x<-[0..width] ]
+        gcdvals = map (foldr1 gcd') $ cols ++ rows
+
+        factor = foldr1 gcd' gcdvals
+
         startQueue = A.indices im
 
         f :: (Int, Int) -> (ImageM (Codel (Int, Int)), S.Set (Codel (Int, Int))) -> (ImageM (Codel (Int, Int)), S.Set (Codel (Int, Int)))
         f p (m,s) = 
-            let (points, codel) = getCodel im p
+            let (points, codel) = getCodel im factor p
             in if p `M.member` m 
                 then (m,s) 
                 else (foldr (\q -> M.insert q codel) m points, S.insert codel s)

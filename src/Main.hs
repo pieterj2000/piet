@@ -7,16 +7,20 @@ import Codel
 import qualified Data.Set as S
 import qualified Data.DirGraph as G
 import Interpreter (runProgram)
+import Data.Char (ord)
 
 
 main :: IO ()
 main = do
-    ima <- codelsFromImage "./tests/Piet_hello_small.png" -- "./tests/Piet_hello_small.png"
+    ima <- codelsFromImage "./tests/Gcd.png" -- "./tests/Piet_hello_small.png"
     --print ima
     case ima of
         Left err -> putStrLn err
         Right c@(codelm, codels) -> do
+            --print $ sum $ map ord $ show codelm
+            --getLine
             print codelm
+            --getLine
             putStrLn ""
             putStrLn ""
             print codels
@@ -57,5 +61,6 @@ main = do
             putStrLn ""
             putStrLn ""
             --print g1
+            getLine
 
             runProgram startnode echtegraaf

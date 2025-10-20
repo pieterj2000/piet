@@ -10,9 +10,10 @@ import Utils
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Char (isSpace, ord, chr)
 import Text.Read (readMaybe)
-import System.IO (isEOF)
+import System.IO (isEOF, stdout, hFlush)
 import Data.Tuple (swap)
 import Control.Applicative (asum)
+import qualified Debug.Trace as Debug
 
 
 data Piet a = Piet { 
@@ -69,7 +70,7 @@ pointerOp :: Int -> Piet ()
 pointerOp n = Piet $ \_ v c d s -> pure ((), v, c, rotateDPClockwise n d, s)
 
 switchOp :: Int -> Piet ()
-switchOp n = Piet $ \_ v c d s -> pure ((), v, toggleCCn n c, d, s)
+switchOp n = Piet $ \_ v c d s -> pure ((), v, (\x -> Debug.traceShow (n,c,x) x) $ toggleCCn n c, d, s)
 
 getStack :: Piet [Int] 
 getStack = Piet $ \_ v c d s -> pure (s, v, c, d, s)
@@ -191,7 +192,10 @@ doeInstructions (x:xs) =
             PInNum -> pushNumInput
             POutNum -> unitOpAlsKan $ liftIO . putStr . show
             PInChar -> getCharInput
-            POutChar -> unitOpAlsKan $ liftIO . putChar . chr
+            -- TODO weet niet of flush hier uiteindelijk handig is na iedere output,
+            -- Alternatief is vóór iedere input, maar dan bij een oneindige loop wordt er nooit output gedaan. 
+            -- is denk ik wel eigenlijk beter alleen bij input, is vgm ook wat in C stdio gebeurd.
+            POutChar -> unitOpAlsKan $ liftIO . (>> hFlush stdout) . putChar . chr 
             PNop -> pure ()
             PStop -> pure () -- heeft zo losse uitzondering
             PSetDP d -> Piet $ \_ v c _ s -> pure ((), v, c, d, s)
@@ -208,11 +212,12 @@ getInstructions = Piet $ \g v c d s -> pure (G.getVal v g, v, c, d, s)
 
 runProgramLoop :: Piet ()
 runProgramLoop = do
-    --(v,c,d,s) <- Piet $ \g v c d s -> pure ((v,c,d,s), v, c, d, s)
-    --liftIO $ putStr $ "we zijn in " ++ show v ++ " met richting " ++ show c ++ "," ++ show d ++ " en stack " ++ show s ++ "\n"
+    (v,c,d,s) <- Piet $ \g v c d s -> pure ((v,c,d,s), v, c, d, s)
+    liftIO $ putStr $ "we zijn in " ++ show v ++ " met richting " ++ show c ++ "," ++ show d ++ " en stack " ++ show s ++ "\n"
     ins <- getInstructions
-    --liftIO $ putStr "Instructions: "
-    --liftIO $ print ins
+    liftIO $ putStr "Instructions: "
+    liftIO $ print ins
+    liftIO $ getLine
     doorgaan <- doeInstructions ins
     if not doorgaan
         then pure ()
