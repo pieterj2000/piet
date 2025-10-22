@@ -70,7 +70,7 @@ pointerOp :: Int -> Piet ()
 pointerOp n = Piet $ \_ v c d s -> pure ((), v, c, rotateDPClockwise n d, s)
 
 switchOp :: Int -> Piet ()
-switchOp n = Piet $ \_ v c d s -> pure ((), v, (\x -> Debug.traceShow (n,c,x) x) $ toggleCCn n c, d, s)
+switchOp n = Piet $ \_ v c d s -> pure ((), v, toggleCCn n c, d, s)
 
 getStack :: Piet [Int] 
 getStack = Piet $ \_ v c d s -> pure (s, v, c, d, s)
@@ -230,6 +230,7 @@ doeStap = Piet $ \g v c d s -> do
         dirseq = nextseq (d,c)
         dirseq' = asum $ map (\d' -> lookup' d' edges) dirseq
     --liftIO $ print edges
+    --liftIO $ print (v,c,d,s)
     case dirseq' of
         -- dit zou als het goed is niet moeten kunnen met hoe de graaf in Codels wordt gemaakt
         Nothing -> error "doeStap: arcs heeft geen arc met huidige (dp,cc) of roterende dingen (i.e. geen uitgaande arcs)"

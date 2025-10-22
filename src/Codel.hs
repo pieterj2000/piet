@@ -324,7 +324,7 @@ doeInstrDir (dp,cc) (ORGEdge ( (PSetCC nieuwcc) : ins )) = doeInstrDir (dp, nieu
 doeInstrDir (dp,cc) (ORGEdge ( PPointer : ins )) = concatMap (\nieuwdp -> doeInstrDir (nieuwdp, cc) $ ORGEdge ins) [N, E, S, W]
 doeInstrDir (dp,cc) (ORGEdge ( PSwitch : ins)) = concatMap (\nieuwcc -> doeInstrDir (dp, nieuwcc) $ ORGEdge ins) [CCRight, CCLeft]
 doeInstrDir dir (ORGEdge (i:ins)) = doeInstrDir dir $ ORGEdge ins
--- eigenlijk zou hier nog een check moeten zitten voor PStop, maar als het goed is kan dat op dit punt nooit voorkomen
+-- eigenlijk zou hier nog een check moeten zitten voor ORGEdge PStop, maar als het goed is kan dat op dit punt nooit voorkomen
 doeInstrDir dir (ORGNodeNop) = [dir]
 doeInstrDir dir (ORGNodeStop) = []
 
@@ -370,11 +370,12 @@ doeStap dirs zip = case G.getAtZipper zip of
                         ) $ 
                     dirsafterinstrs
 
+            insertArcs from to vals g = foldr (G.insertArc from to) g vals
 
             --  zorg dat die edges ook vertices hebben door recursief doeStap te doen, en maak meteen arcs in nieuwe graaf voor die edges
             zip4 = foldr (
                 \(vertex, dir, directions) zipper -> 
-                    (\zippie -> (G.insertArc v (fromJust . snd $ G.getAtZipper $ G.moveZipper vertex zippie) dir) <$> zippie) $
+                    (\zippie -> (insertArcs v (fromJust . snd $ G.getAtZipper $ G.moveZipper vertex zippie) directions) <$> zippie) $
                     doeStap directions $ 
                     G.moveZipper vertex zipper
                     ) zip3 edges
