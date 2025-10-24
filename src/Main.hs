@@ -63,14 +63,41 @@ Hello_nietpastel        -> infinite loop, wel eerst output "Hello, world!\n"
 Hello_nietpastel_small  -> infinite loop, wel eerst output "Hello, world!\n"
 Hello_world             -> "Hello, world!\n"
 Hello_world_small       -> "Hello, world!\n"
-
-
+Dayofweek               -> Werkt soort van, 2004 4 20 geeft als antwoord 2, 2007 3 15 geeft antwoord 4
+Dayofweek_small         -> Werkt soort van, 2004 4 20 geeft als antwoord 2, 2007 3 15 geeft antwoord 4
+Fizzbuzz                -> Werkt! Kijk maar naar output
+Pietquest               -> Werkt! Kijk maar naar output
+Brainfuck               -> Werkt! ",+>,+>,+>,+.<.<.<.|sdhO" geeft "Piet" en 
+    ">++++++++[-<+++++++++>]<.>>+>-[+]++>++>+++[>[->+++<<+++>]<<]>-----.>->+++..+++.>-.<<+[>[+>+]>>]<--------------.>>.+++.------.--------.>+.>+.|."      "Hello World!\n"
+    "+++++++++>>,<<[->+++++<]>+++[>-<-]>>+++++[>++++++++++<-]>-<<[>>.<<]>>-.|1" geeft oneindige loop aan 1en
+    "+++++++++>>,<<[->+++++<]>+++[>-<-]>>+++++[>++++++++++<-]>-<<[>>.<<]>>-.|0" geeft "0"
+Brainfuck_small         -> Werkt!
+Cowsay                  -> Werkt!
+Cowsay_small            -> Werkt!
+Gnomesort               -> werkt wel, maar eindigt met infinite loop
+Tetris                  -> Werkt! output "Tetris"
+Tetris_small            -> Werkt! output "Tetris"
+Hello_multi             -> output "Piet", TODO als we de codelsize kunnen forcen met een flag, dan zou deze met codel size 2x2 "Hello world!" moeten outputten
+Hello_multi_small       -> output "Piet"
+Game_life               -> WERKT NOG NIET,  TODO: Als we beginnen in een witte codel dan flipt hij hem
+Game_life_small         -> WERKT NOG NIET,  TODO: Als we beginnen in een witte codel dan flipt hij hem
+Valentine               -> "I Love You Laura"
+Quine1                  -> Werkt, doet output, maar eindigt in infinite loop
+Quine2                  -> Werkt, doet output, maar eindigt in infinite loop
+Rockpaperscissors       -> Werkt!
+Hello_blue              -> Error foute kleur
+Hello_blue_small        -> Error foute kleur
+Piet_glass              -> Werkt! "MATTER"
+Brutal                  -> Werkt soort van, niet echt te testen of o
+Wc                      -> Error foute kleuren
+Hi                      -> Werkt! "Hi\n"
+Priem5                  -> Werkt!, bij 463 antwoord hij "Y\n" en bij 464 antwoordt hij "N\n"
 
 -}
 
 main :: IO ()
 main = do
-    ima <- codelsFromImage "./tests/Hello_world.png" -- "./tests/Piet_hello_small.png"
+    ima <- codelsFromImage "./tests/Priem5.png" -- "./tests/Piet_hello_small.png"
     --print ima
     case ima of
         Left err -> putStrLn err

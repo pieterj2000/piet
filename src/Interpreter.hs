@@ -147,7 +147,10 @@ getNumInput = do
     if isClosed 
         then pure Nothing
         else do
-            s <- liftIO getLine
+            s <- liftIO getLine -- TODO: op het moment als we twee integers met spatie op één regel doen dan leest hij dit niet als twee intgeers
+                                -- we volgen niet precies dezelfde regels als in die github van die andere
+                                -- dus TODO: verbeteren
+                                -- en TODO: Test maken (ik zou daar het Adder of Power programma voor gebruiken)
             case filter (not . isSpace) s of
                 "" -> getNumInput -- een lege regel of regel met alleen spaties, dus opnieuw regel lezen
                 ss -> pure $ readMaybe ss
