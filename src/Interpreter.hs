@@ -190,11 +190,12 @@ doeInstructions (x:xs) =
             PRoll -> metStackRestore $ \restore -> binOpAlsKan $ rollOp restore
             -- we volgen https://github.com/your-diary/piet_programming_language als input
             PInNum -> pushNumInput
-            POutNum -> unitOpAlsKan $ liftIO . putStr . show
+            POutNum -> unitOpAlsKan $ liftIO . (>> hFlush stdout) . putStr . show
             PInChar -> getCharInput
             -- TODO weet niet of flush hier uiteindelijk handig is na iedere output,
             -- Alternatief is vóór iedere input, maar dan bij een oneindige loop wordt er nooit output gedaan. 
             -- is denk ik wel eigenlijk beter alleen bij input, is vgm ook wat in C stdio gebeurd.
+            -- TODO ook doen bij POutNum
             POutChar -> unitOpAlsKan $ liftIO . (>> hFlush stdout) . putChar . chr 
             PNop -> pure ()
             PStop -> pure () -- heeft zo losse uitzondering

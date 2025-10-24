@@ -337,6 +337,7 @@ tmpInstrToInstr ORGNodeStop = [PStop]
 
 --doeStap :: G.Vertex -> (G.Graph [TMPInstruction] (DP,CC), G.Graph [PInstruction] (DP,CC)) -> (G.Graph [TMPInstruction] (DP,CC), G.Graph [PInstruction] (DP,CC))
 
+--TODO DEZE MAYBE G.VERTEX MOET DENK IK NIET EEN MAYBE ZIJN MET BESTAAT VERTEX IN NIEUWE GRAAF J/N, MAAR MOET OOK DE INKOMENDE DIRECTIONS BEVATTEN
 doeStap :: [(DP,CC)] -> G.Zipper (TMPInstruction, Maybe G.Vertex) (DP, CC) (G.Graph [PInstruction] (DP, CC)) 
             -> G.Zipper (TMPInstruction, Maybe G.Vertex) (DP, CC) (G.Graph [PInstruction] (DP, CC))
 doeStap dirs zip = case G.getAtZipper zip of

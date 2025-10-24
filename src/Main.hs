@@ -13,9 +13,20 @@ import Data.Char (ord)
 --TODO: gcd werkt wel, maar de code klopt niet. Hij stopt als in r=m%n uitkomt dat 1<r, maar als r=1 is dan output hij n, ook al is n>1
 -- Bijvoorbeeld hij geeft gcd(12,17)=2. 
 
+{-
+TESTS
+
+Foute_kleur             -> Error
+Piet_hello_small        -> "Hello world!"
+Piet_hello              -> "Hello world!"
+Fibonacci               -> infinite loop
+Hanoi
+
+-}
+
 main :: IO ()
 main = do
-    ima <- codelsFromImage "./tests/Gcd.png" -- "./tests/Piet_hello_small.png"
+    ima <- codelsFromImage "./tests/Hanoi.png" -- "./tests/Piet_hello_small.png"
     --print ima
     case ima of
         Left err -> putStrLn err
