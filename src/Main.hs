@@ -16,17 +16,61 @@ import Data.Char (ord)
 {-
 TESTS
 
-Foute_kleur             -> Error
+Foute_kleur             -> Error foute kleur
 Piet_hello_small        -> "Hello world!"
 Piet_hello              -> "Hello world!"
 Fibonacci               -> infinite loop
-Hanoi
+Hanoi                   -> infinite loop, gekke output
+Piet_hello2             -> Error foute kleur
+Piet_hello2_small       -> Error foute kleur
+Priem1_klein            -> Error foute kleur
+Priem1                  -> Error foute kleur
+Priem2_klein            -> Error foute kleur
+Priem2                  -> Error foute kleur
+Hello1                  -> "Hello, world!\n"
+Hello1_small            -> "Hello, world!\n"
+Hello2                  -> infinite loop, wel eerst output "Hello, world!\n"
+Hello2_small            -> infinite loop, wel eerst output "Hello, world!\n"
+Hello_artistic1         -> "Hello, world!\n"
+Hello_artistic1_small   -> "Hello, world!\n"
+Hello_artistic2         -> "Hello, world!\n"
+Hello_artistic2_small   -> "Hello, world!\n"
+Piet_piet_small         -> infinite loop
+Piet_piet               -> infinite loop
+Alpha                   -> "abcdefghijklmnopqrstuvwxyz"
+Alpha_small             -> "abcdefghijklmnopqrstuvwxyz"
+Priem3                  -> Error foute kleur
+Priem3_small            -> Error foute kleur
+Adder                   -> Werkt goed, twee nummers invoeren, krijgt som
+Adder_small             -> Werkt goed, twee nummers invoeren, krijgt som
+Pi                      -> "31405\n"
+Pi_small                -> "31405\n"
+Gcd                     -> werkt soort van, zie vorige opmerking
+Gcd_small               -> werkt soort van, zie vorige opmerking
+Japh                    -> Werkt niet, het zijn geen vierkanten //TODO-> codels mogen ook rechthoeken zijn (?)
+Japh_small              -> infinite loop, geen idee wat het moet doen...
+Power                   -> Werkt goed, twee nummers invoeren, krijgt a^b
+Power_small             -> Werkt goed, twee nummers invoeren, krijgt a^b
+Factorial               -> Error foute kleur (Werkt volgens de online ding wel) TODO: een `permissive' mode toevoegen dat foute kleuren worden gelezen
+Factorial_small         -> Error foute kleur (Werkt volgens de online ding wel)                      als de dichtbijzijnste andere kleur
+99bottles               -> Werkt! Kijk de output maar of hij werkt
+99bottles_small         -> Werkt! Kijk de output maar of hij werkt
+Hello_mondriaan         -> "Hello, world!\n"
+Hello_mondriaan_small   -> "Hello, world!\n"
+Priem4                  -> Werkt niet goed, werkt semi-wel, maar output slecht
+Priem4_small            -> Werkt niet goed, werkt semi-wel, maar output slecht
+Hello_nietpastel        -> infinite loop, wel eerst output "Hello, world!\n"
+Hello_nietpastel_small  -> infinite loop, wel eerst output "Hello, world!\n"
+Hello_world             -> "Hello, world!\n"
+Hello_world_small       -> "Hello, world!\n"
+
+
 
 -}
 
 main :: IO ()
 main = do
-    ima <- codelsFromImage "./tests/Hanoi.png" -- "./tests/Piet_hello_small.png"
+    ima <- codelsFromImage "./tests/Hello_world.png" -- "./tests/Piet_hello_small.png"
     --print ima
     case ima of
         Left err -> putStrLn err

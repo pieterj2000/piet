@@ -173,7 +173,7 @@ doeInstructions (x:xs) =
             PPop -> pop *> pure ()
             PAdd -> binOpAlsKan (push .: (+)) -- top + tweedetop
             PSubstract -> binOpAlsKan (push .: subtract) -- tweedetop - top
-            PMultiply -> binOpAlsKan (push .: (+)) -- top * tweedetop
+            PMultiply -> binOpAlsKan (push .: (*)) -- top * tweedetop
             PDivide -> metStackRestore $ \restore -> binOpAlsKan $ \top tweedetop ->  -- tweedetop / top
                 if top == 0 
                     then restore
@@ -213,12 +213,12 @@ getInstructions = Piet $ \g v c d s -> pure (G.getVal v g, v, c, d, s)
 
 runProgramLoop :: Piet ()
 runProgramLoop = do
-    (v,c,d,s) <- Piet $ \g v c d s -> pure ((v,c,d,s), v, c, d, s)
-    liftIO $ putStr $ "we zijn in " ++ show v ++ " met richting " ++ show c ++ "," ++ show d ++ " en stack " ++ show s ++ "\n"
+    --(v,c,d,s) <- Piet $ \g v c d s -> pure ((v,c,d,s), v, c, d, s)
+    --liftIO $ putStr $ "we zijn in " ++ show v ++ " met richting " ++ show c ++ "," ++ show d ++ " en stack " ++ show s ++ "\n"
     ins <- getInstructions
-    liftIO $ putStr "Instructions: "
-    liftIO $ print ins
-    liftIO $ getLine
+    --liftIO $ putStr "Instructions: "
+    --liftIO $ print ins
+    --liftIO $ getLine
     doorgaan <- doeInstructions ins
     if not doorgaan
         then pure ()

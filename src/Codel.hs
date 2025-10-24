@@ -17,7 +17,7 @@ import qualified Data.Map as M -- TODO Intmap of Array of Vector
 import qualified Data.Set as S
 import Codec.Picture hiding (Image)
 import Data.Function (on)
-import Data.List (sortOn, groupBy, (\\), nub, singleton, group)
+import Data.List (sortOn, groupBy, (\\), nub, singleton, group, union)
 import Data.Ord (Down (Down))
 import Control.Monad ((<=<))
 import qualified Data.DirGraph as G
@@ -338,49 +338,63 @@ tmpInstrToInstr ORGNodeStop = [PStop]
 --doeStap :: G.Vertex -> (G.Graph [TMPInstruction] (DP,CC), G.Graph [PInstruction] (DP,CC)) -> (G.Graph [TMPInstruction] (DP,CC), G.Graph [PInstruction] (DP,CC))
 
 --TODO DEZE MAYBE G.VERTEX MOET DENK IK NIET EEN MAYBE ZIJN MET BESTAAT VERTEX IN NIEUWE GRAAF J/N, MAAR MOET OOK DE INKOMENDE DIRECTIONS BEVATTEN
-doeStap :: [(DP,CC)] -> G.Zipper (TMPInstruction, Maybe G.Vertex) (DP, CC) (G.Graph [PInstruction] (DP, CC)) 
-            -> G.Zipper (TMPInstruction, Maybe G.Vertex) (DP, CC) (G.Graph [PInstruction] (DP, CC))
-doeStap dirs zip = case G.getAtZipper zip of
-    (_, Just _) -> zip
-    (instructions, Nothing) -> 
-        let            
-            -- maak lege vertex in nieuwe graaf voor huidige vertex
-            ins = tmpInstrToInstr instructions
-            zip1 = (G.insertVertex ins) <$> zip
-            v = fst $ G.getZipperVal zip1
-            zip2 = snd <$> zip1
-            zip3 = G.changeAtZipper (second $ const $ Just v) zip2
+doeStap :: [(DP,CC)] -> G.Zipper (TMPInstruction, Maybe G.Vertex, [(DP,CC)]) (DP, CC) (G.Graph [PInstruction] (DP, CC)) 
+            -> G.Zipper (TMPInstruction, Maybe G.Vertex, [(DP,CC)]) (DP, CC) (G.Graph [PInstruction] (DP, CC))
+doeStap origineledirs zip = 
+    let maaknieuwevertex :: TMPInstruction -> (G.Vertex, G.Zipper (TMPInstruction, Maybe G.Vertex, [(DP,CC)]) (DP, CC) (G.Graph [PInstruction] (DP, CC)) )
+        maaknieuwevertex instructions = 
+            let ins = tmpInstrToInstr instructions
+                zip1 = (G.insertVertex ins) <$> zip
+                v = fst $ G.getZipperVal zip1
+                zip2 = snd <$> zip1
+                zip3 = G.changeAtZipper (second3 $ const $ Just v) zip2
+            in (v,zip3)
+        
+        doespul :: [(DP,CC)] -> TMPInstruction -> G.Vertex -> G.Zipper (TMPInstruction, Maybe G.Vertex, [(DP,CC)]) (DP, CC) (G.Graph [PInstruction] (DP, CC)) 
+            -> G.Zipper (TMPInstruction, Maybe G.Vertex, [(DP,CC)]) (DP, CC) (G.Graph [PInstruction] (DP, CC)) 
+        doespul dirs instructions vertexnieuwegraaf zip2 =
+            let -- pak alle relevante edges
+                dirsafterinstrs = nub $ dirs >>= flip doeInstrDir instructions
+                
+                isedge = instructions /= ORGNodeNop && instructions /= ORGNodeStop
 
-            -- pak alle relevante edges
-            dirsafterinstrs = nub $ dirs >>= flip doeInstrDir instructions
-            
+                alledges = map swap $ G.getZipperArcs zip2
 
-            isedge = instructions /= ORGNodeNop && instructions /= ORGNodeStop
+                edges
+                    | isedge = map (\(label,u) -> (u,label,dirsafterinstrs)) alledges
+                    | otherwise = 
+                        map (\(dir,vert) -> (vert, dir, [dir])) $ 
+                        nub $ 
+                        mapMaybe (\d -> 
+                            asum $ 
+                            map (\d' -> lookup' d' alledges) $ 
+                            nextseq d
+                            ) $ 
+                        dirsafterinstrs
 
-            alledges = map swap $ G.getZipperArcs zip
+                insertArcs from to vals g = foldr (G.insertArc from to) g vals
 
-            edges
-                | isedge = map (\(label,u) -> (u,label,dirsafterinstrs)) alledges
-                | otherwise = 
-                    map (\(dir,vert) -> (vert, dir, [dir])) $ 
-                    nub $ 
-                    mapMaybe (\d -> 
-                        asum $ 
-                        map (\d' -> lookup' d' alledges) $ 
-                        nextseq d
-                        ) $ 
-                    dirsafterinstrs
+                
+                zip3 = G.changeAtZipper (third3 (union dirs))  zip2
 
-            insertArcs from to vals g = foldr (G.insertArc from to) g vals
-
-            --  zorg dat die edges ook vertices hebben door recursief doeStap te doen, en maak meteen arcs in nieuwe graaf voor die edges
-            zip4 = foldr (
-                \(vertex, dir, directions) zipper -> 
-                    (\zippie -> (insertArcs v (fromJust . snd $ G.getAtZipper $ G.moveZipper vertex zippie) directions) <$> zippie) $
-                    doeStap directions $ 
-                    G.moveZipper vertex zipper
-                    ) zip3 edges
-        in zip4
+                --  zorg dat die edges ook vertices hebben door recursief doeStap te doen, en maak meteen arcs in nieuwe graaf voor die edges
+                zip4 = foldr (
+                    \(vertex, dir, directions) zipper -> 
+                        (\zippie -> (insertArcs vertexnieuwegraaf (fromJust . snd3 $ G.getAtZipper $ G.moveZipper vertex zippie) directions) <$> zippie) $
+                        doeStap directions $ 
+                        G.moveZipper vertex zipper
+                        ) zip3 edges
+            in zip4
+        
+        
+        
+    in case G.getAtZipper zip of
+        (instructions, Just v, bestaandedirs)
+            | all (`elem` bestaandedirs) origineledirs -> zip
+            | otherwise -> doespul (origineledirs \\ bestaandedirs) instructions v zip
+        (instructions, Nothing, []) -> uncurry (doespul origineledirs instructions) $ maaknieuwevertex instructions -- deze zou niet voor moeten komen maar goed
+        (instructions, Nothing, bestaandedirs) -> zip -- deze zou niet voor moeten komen maar goed
+        
 
         
 
@@ -388,12 +402,12 @@ doeStap dirs zip = case G.getAtZipper zip of
 
 makeInstructionGraphWalk :: G.Vertex -> G.Graph TMPInstruction (DP,CC) -> (G.Vertex, G.Graph [PInstruction] (DP,CC))
 makeInstructionGraphWalk startnode graph =
-    let graph' = G.mapVertices (\v -> (G.getVal v graph, Nothing)) graph
+    let graph' = G.mapVertices (\v -> (G.getVal v graph, Nothing, [])) graph
         zipper = G.getZipper startnode G.empty graph'
         zipper' = doeStap [(E, CCLeft)] zipper
         zipper'' = G.moveZipper startnode zipper'
         (oudegraph', _, nieuwegraph) = G.fromZipper zipper''
-        startnode' = fromJust . snd $ G.getVal startnode oudegraph'
+        startnode' = fromJust . snd3 $ G.getVal startnode oudegraph'
     in (startnode', nieuwegraph)
 
 -- instGraphFromCodelGraph2 :: G.Vertex -> G.Graph TMPInstruction (DP,CC) -> (G.Vertex, G.Graph TMPInstruction (DP,CC))
