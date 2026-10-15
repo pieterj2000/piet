@@ -204,7 +204,7 @@ getImage file = do
 
 
 codelsFromImage :: String -> IO (Either String (ImageM (Codel (Int, Int)), S.Set (Codel (Int, Int))))
-codelsFromImage = (pure . (getCodels <$>) . (Debug.traceShowId)) <=< getImage 
+codelsFromImage = (pure . (getCodels <$>)) <=< getImage 
     
 
 -- | gcd function which is lazy in second arguments, i.e. gcd' 1 _ = 1 short-circuits
